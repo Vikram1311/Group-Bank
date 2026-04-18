@@ -55,6 +55,7 @@ export default function AdminPanel() {
   const [showEMIDetail, setShowEMIDetail] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getMonthKey(new Date()));
   const [messageText, setMessageText] = useState('');
+  const [messageSendFeedback, setMessageSendFeedback] = useState('');
   const [messageType, setMessageType] = useState<'broadcast' | 'loan_holder'>('broadcast');
   const [newName, setNewName] = useState('');
   const [newMobile, setNewMobile] = useState('');
@@ -156,13 +157,16 @@ export default function AdminPanel() {
   const handleSendMessage = () => {
     const trimmedMessage = messageText.trim();
     if (!trimmedMessage) return;
+    setMessageSendFeedback('');
     store.addNotification(trimmedMessage, messageType);
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(trimmedMessage)}`;
     const popup = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     if (!popup) {
-      alert(t('whatsappPopupBlocked'));
+      setMessageSendFeedback(t('whatsappPopupBlocked'));
+      return;
     }
     setMessageText('');
+    setMessageSendFeedback('');
     setShowSendMessage(false);
   };
 
@@ -773,13 +777,14 @@ export default function AdminPanel() {
       )}
 
       {showSendMessage && (
-        <Modal title={t('sendMessage')} onClose={() => setShowSendMessage(false)}>
+        <Modal title={t('sendMessage')} onClose={() => { setShowSendMessage(false); setMessageSendFeedback(''); }}>
           <div className="space-y-4">
             <div className="flex gap-2">
               <button onClick={() => setMessageType('broadcast')} className={`flex-1 py-2 rounded-xl text-sm ${messageType === 'broadcast' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-400'}`}>{t('broadcast')}</button>
               <button onClick={() => setMessageType('loan_holder')} className={`flex-1 py-2 rounded-xl text-sm ${messageType === 'loan_holder' ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-400'}`}>{t('loanHolders')}</button>
             </div>
-            <textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder={t('message')} rows={4} className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+            <textarea value={messageText} onChange={(e) => { setMessageText(e.target.value); setMessageSendFeedback(''); }} placeholder={t('message')} rows={4} className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+            {messageSendFeedback && <p className="text-xs text-amber-300">{messageSendFeedback}</p>}
             <p className="text-xs text-gray-400">{t('whatsappLinkedHint')}</p>
             <button onClick={handleSendMessage} className={`${btnP} w-full py-3`}><Send className="w-4 h-4 inline mr-1" /> {t('sendMessage')}</button>
           </div>
