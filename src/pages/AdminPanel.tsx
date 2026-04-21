@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 type AdminTab = 'dashboard' | 'members' | 'loans' | 'contributions' | 'messages' | 'settings';
+const URL_REVOKE_DELAY_MS = 5000;
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
   return (
@@ -194,9 +195,10 @@ export default function AdminPanel() {
     const fileName = memberId ? 'member_report.csv' : `monthly_report_${selectedMonth}.csv`;
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const file = new File([blob], fileName, { type: 'text/csv;charset=utf-8;' });
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    const canShareFiles = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+    if (navigator.share && canShareFiles) {
       try {
-        await navigator.share({ files: [file], title: fileName });
+        await navigator.share({ files: [file] });
         return;
       } catch {
         // Fallback to direct download below when share is cancelled/unsupported.
@@ -209,7 +211,7 @@ export default function AdminPanel() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
   };
 
   const getMonths = () => {

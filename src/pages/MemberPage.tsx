@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 type MemberTab = 'dashboard' | 'loans' | 'history' | 'profile';
+const URL_REVOKE_DELAY_MS = 5000;
 
 export default function MemberPage() {
   const { t, i18n } = useTranslation();
@@ -98,9 +99,10 @@ export default function MemberPage() {
     const fileName = `${member.name.replace(/\s+/g, '_')}_report.csv`;
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const file = new File([blob], fileName, { type: 'text/csv;charset=utf-8;' });
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    const canShareFiles = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+    if (navigator.share && canShareFiles) {
       try {
-        await navigator.share({ files: [file], title: fileName });
+        await navigator.share({ files: [file] });
         return;
       } catch {
         // Fallback to direct download below when share is cancelled/unsupported.
@@ -113,7 +115,7 @@ export default function MemberPage() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
   };
 
   const btn3d = "relative overflow-hidden rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 transform";
