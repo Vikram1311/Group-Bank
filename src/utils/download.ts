@@ -1,29 +1,56 @@
-// Delay URL cleanup so the browser/webview can start the download reliably.
-const REVOKE_DELAY_MS = 1000;
+// Delay URL cleanup so slow devices finish starting the download first.
+const REVOKE_DELAY_MS = 2000;
 
 /**
  * Downloads CSV content as a UTF-8 file with BOM for spreadsheet compatibility.
- * @param content CSV text content
- * @param filename output filename for the downloaded file
+ *
+ * Strategy:
+ *  - iOS Safari: the `download` attribute on blob: URLs is not supported, so
+ *    we encode the content as a data: URI and open it in a new tab.  The user
+ *    can then save the file via the iOS share sheet ("Save to Files").
+ *  - All other browsers: blob URL + programmatic anchor click (standard approach).
+ *  - Fallback: if the blob approach throws for any reason, we fall back to the
+ *    data: URI approach so the user at least sees the content.
+ *
+ * @param content  CSV text (must not be empty)
+ * @param filename Suggested filename for the download
  */
 export function downloadCSV(content: string, filename: string) {
-  const csvWithBom = `\ufeff${content}`;
-  const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
+  if (!content) return;
 
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.style.display = 'none';
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
+  const csvWithBom = '\ufeff' + content;
 
-  setTimeout(() => {
-    try {
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.warn('Failed to revoke CSV download URL:', error);
-    }
-  }, REVOKE_DELAY_MS);
+  // iOS Safari does not honour the `download` attribute on blob: URLs.
+  // Open a data: URI in a new tab instead; the user can save via the share sheet.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvWithBom);
+    window.open(dataUri, '_blank');
+    return;
+  }
+
+  try {
+    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+
+    anchor.setAttribute('href', url);
+    anchor.setAttribute('download', filename);
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+
+    setTimeout(() => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore cleanup errors
+      }
+    }, REVOKE_DELAY_MS);
+  } catch {
+    // Fallback for any browser that can't handle blob: URLs — open in new tab.
+    const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvWithBom);
+    window.open(dataUri, '_blank');
+  }
 }
