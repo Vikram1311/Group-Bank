@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 type MemberTab = 'dashboard' | 'loans' | 'history' | 'profile';
+const URL_REVOKE_DELAY_MS = 5000;
 
 export default function MemberPage() {
   const { t, i18n } = useTranslation();
@@ -93,15 +94,28 @@ export default function MemberPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleDownloadCSV = () => {
+  const handleDownloadCSV = async () => {
     const csv = store.exportMemberCSV(member.id);
+    const fileName = `${member.name.replace(/\s+/g, '_')}_report.csv`;
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const file = new File([blob], fileName, { type: 'text/csv;charset=utf-8;' });
+    const canShareFiles = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+    if (navigator.share && canShareFiles) {
+      try {
+        await navigator.share({ files: [file] });
+        return;
+      } catch {
+        // Fallback to direct download below when share is cancelled/unsupported.
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${member.name.replace(/\s+/g, '_')}_report.csv`;
+    a.download = fileName;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
   };
 
   const btn3d = "relative overflow-hidden rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 transform";
@@ -110,7 +124,7 @@ export default function MemberPage() {
   const btnDanger = `${btn3d} bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-lg shadow-red-500/30`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 pb-24">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 pb-20 md:pb-24">
       {/* Header */}
       <header
         className="bg-gradient-to-r from-purple-900 via-indigo-900 to-blue-900 shadow-2xl"
