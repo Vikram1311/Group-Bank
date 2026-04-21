@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatCurrency, formatDate, generateId, getMonthKey, getContributionDueDate, calculatePenaltyDays } from '../utils/calculations';
 import { calculateLoanDetails } from '../utils/calculations';
+import { downloadCSV } from '../utils/download';
 import {
   Users, IndianRupee, TrendingUp, Wallet, LogOut, Plus, Trash2, Edit3, Download,
   Send, Settings, Eye, CheckCircle, XCircle, Banknote,
@@ -11,7 +12,6 @@ import {
 } from 'lucide-react';
 
 type AdminTab = 'dashboard' | 'members' | 'loans' | 'contributions' | 'messages' | 'settings';
-const URL_REVOKE_DELAY_MS = 5000;
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
   return (
@@ -190,28 +190,10 @@ export default function AdminPanel() {
     setShowSendMessage(false);
   };
 
-  const handleExportCSV = async (memberId?: string) => {
+  const handleExportCSV = (memberId?: string) => {
     const csv = memberId ? store.exportMemberCSV(memberId) : store.exportMonthlyCSV(selectedMonth);
     const fileName = memberId ? 'member_report.csv' : `monthly_report_${selectedMonth}.csv`;
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const file = new File([blob], fileName, { type: 'text/csv;charset=utf-8;' });
-    const canShareFiles = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
-    if (navigator.share && canShareFiles) {
-      try {
-        await navigator.share({ files: [file] });
-        return;
-      } catch {
-        // Fallback to direct download below when share is cancelled/unsupported.
-      }
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
+    downloadCSV(csv, fileName);
   };
 
   const getMonths = () => {
