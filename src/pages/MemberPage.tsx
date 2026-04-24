@@ -3,6 +3,7 @@ import { useStore, hydrateFromSharedState } from '../store/useStore';
 import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatCurrency, formatDate, getMonthKey, calculateLoanDetails, calculatePenaltyDays } from '../utils/calculations';
+import { downloadCSV } from '../utils/download';
 import shgBankBanner from '../assets/shg-bank-banner.svg';
 import {
   IndianRupee, TrendingUp, Wallet, CreditCard, User, Lock, Camera,
@@ -11,7 +12,6 @@ import {
 } from 'lucide-react';
 
 type MemberTab = 'dashboard' | 'loans' | 'history' | 'profile';
-const URL_REVOKE_DELAY_MS = 5000;
 
 export default function MemberPage() {
   const { t, i18n } = useTranslation();
@@ -105,8 +105,7 @@ export default function MemberPage() {
   const handleDownloadCSV = async () => {
     const csv = store.exportMemberCSV(member.id);
     const fileName = `${member.name.replace(/\s+/g, '_')}_report.csv`;
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const file = new File([blob], fileName, { type: 'text/csv;charset=utf-8;' });
+    const file = new File(['\ufeff' + csv], fileName, { type: 'text/csv;charset=utf-8;' });
     const canShareFiles = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
     if (navigator.share && canShareFiles) {
       try {
@@ -116,14 +115,7 @@ export default function MemberPage() {
         // Fallback to direct download below when share is cancelled/unsupported.
       }
     }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
+    downloadCSV(csv, fileName);
   };
 
   const btn3d = "relative overflow-hidden rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 transform";
