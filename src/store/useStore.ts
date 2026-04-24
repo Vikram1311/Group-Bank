@@ -1087,7 +1087,9 @@ const hydrateFromSharedState = async () => {
   });
 };
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !(window as Window & { __shgSyncInit?: boolean }).__shgSyncInit) {
+  (window as Window & { __shgSyncInit?: boolean }).__shgSyncInit = true;
+
   void hydrateFromSharedState();
 
   // Poll every 30 seconds so members see admin updates without reloading
