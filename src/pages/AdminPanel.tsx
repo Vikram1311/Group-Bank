@@ -103,6 +103,7 @@ export default function AdminPanel() {
   const totalPenalty = store.getTotalPenaltyCollected();
   const totalInterest = store.getTotalInterestCollected();
   const pendingLoans = store.getPendingLoans();
+  const pendingPaymentRequests = (store.paymentRequests ?? []).filter(r => r.status === 'pending');
   const defaulters = store.getDefaulterNames();
   const adminMember = store.members.find(m => m.isAdmin && m.isActive);
   const adminPenaltyShare = adminMember ? store.getMemberPenaltyShare(adminMember.id) : 0;
@@ -328,6 +329,36 @@ export default function AdminPanel() {
                     <div className="flex gap-2">
                       <button onClick={() => store.approveLoan(loan.id)} className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-600"><CheckCircle className="w-4 h-4" /></button>
                       <button onClick={() => store.rejectLoan(loan.id)} className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-red-600"><XCircle className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {pendingPaymentRequests.length > 0 && (
+              <div className="bg-emerald-500/10 backdrop-blur rounded-2xl p-4 mb-6 border border-emerald-500/30">
+                <h3 className="text-emerald-300 font-bold text-lg mb-3 flex items-center gap-2">
+                  <IndianRupee className="w-5 h-5" /> {t('pendingPaymentRequests')} ({pendingPaymentRequests.length})
+                </h3>
+                {pendingPaymentRequests.map(req => (
+                  <div key={req.id} className="bg-white/5 rounded-xl p-3 mb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white font-semibold">{req.memberName}</p>
+                        <p className="text-gray-400 text-xs">{req.memberMobile}</p>
+                        <p className="text-emerald-300 text-sm mt-1">{req.month} • {formatCurrency(req.amount)}</p>
+                        <p className="text-gray-300 text-xs mt-0.5">{t('utrNumber')}: <span className="text-yellow-300 font-mono">{req.utrNumber}</span></p>
+                        <p className="text-gray-400 text-xs">{t('paymentDate')}: {req.paymentDate}</p>
+                        {req.note && <p className="text-gray-400 text-xs mt-0.5">{req.note}</p>}
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => store.approvePaymentRequest(req.id)} className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-600 flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => store.rejectPaymentRequest(req.id)} className="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-red-600 flex items-center gap-1">
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

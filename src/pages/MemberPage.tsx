@@ -8,7 +8,7 @@ import shgBankBanner from '../assets/shg-bank-banner.svg';
 import {
   IndianRupee, TrendingUp, Wallet, CreditCard, User, Lock, Camera,
   ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Bell,
-  FileText, Eye, XCircle, Banknote, ArrowUpCircle, Download, RefreshCw
+  FileText, Eye, XCircle, Banknote, ArrowUpCircle, Download, RefreshCw, Smartphone
 } from 'lucide-react';
 
 type MemberTab = 'dashboard' | 'loans' | 'history' | 'profile';
@@ -23,6 +23,7 @@ export default function MemberPage() {
   const [showLoanDetail, setShowLoanDetail] = useState<string | null>(null);
   const [showTotalAmount, setShowTotalAmount] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const handleRefresh = async () => {
     setIsSyncing(true);
@@ -43,6 +44,12 @@ export default function MemberPage() {
   // Edit profile
   const [editName, setEditName] = useState('');
   const [editMobile, setEditMobile] = useState('');
+
+  // Payment request form
+  const [payMonth, setPayMonth] = useState(getMonthKey(new Date()));
+  const [payUtr, setPayUtr] = useState('');
+  const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [payNote, setPayNote] = useState('');
 
   // Photo
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +99,24 @@ export default function MemberPage() {
     if (editName) store.updateMember(member.id, { name: editName });
     if (editMobile) store.updateMember(member.id, { mobile: editMobile });
     setShowEditProfile(false);
+  };
+
+  const handleSubmitPayment = () => {
+    if (!payUtr.trim()) return;
+    store.addPaymentRequest({
+      memberId: member.id,
+      memberName: member.name,
+      memberMobile: member.mobile,
+      month: payMonth,
+      amount: store.settings.monthlyContribution,
+      utrNumber: payUtr.trim(),
+      paymentDate: payDate,
+      note: payNote.trim() || undefined,
+    });
+    setShowPaymentModal(false);
+    setPayUtr('');
+    setPayNote('');
+    alert(t('paymentRequestSent'));
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -249,9 +274,24 @@ export default function MemberPage() {
                 <Banknote className="w-5 h-5 text-yellow-400" /> {t('paymentQR')}
               </h3>
               <div className="flex flex-col items-center bg-white rounded-2xl p-4">
-                <QRCodeSVG value={`upi://pay?pa=${store.settings.upiId}&pn=SHG%20Bank`} size={160} />
+                <a
+                  href={`upi://pay?pa=${encodeURIComponent(store.settings.upiId)}&pn=SHG%20Bank&am=${store.settings.monthlyContribution}&cu=INR`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-col items-center"
+                >
+                  <QRCodeSVG value={`upi://pay?pa=${store.settings.upiId}&pn=SHG%20Bank`} size={160} />
+                </a>
                 <p className="text-gray-800 font-bold mt-2">{store.settings.upiId}</p>
-                <p className="text-gray-500 text-xs">{t('scanToPay')}</p>
+                <p className="text-gray-500 text-xs mb-3">{t('scanToPay')}</p>
+                <a
+                  href={`upi://pay?pa=${encodeURIComponent(store.settings.upiId)}&pn=SHG%20Bank&am=${store.settings.monthlyContribution}&cu=INR`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm active:scale-95 transition-all"
+                >
+                  <Smartphone className="w-4 h-4" /> {t('payNowUpi')}
+                </a>
               </div>
             </div>
 
@@ -285,7 +325,7 @@ export default function MemberPage() {
             )}
 
             {/* Contribution Deposit */}
-            <button onClick={() => alert('कृपया UPI QR कोड से भुगतान करें। एडमिन द्वारा सत्यापन के बाद योगदान दिखाई देगा।')} className={btnPrimary + " w-full py-3 text-center flex items-center justify-center gap-2"}>
+            <button onClick={() => setShowPaymentModal(true)} className={btnPrimary + " w-full py-3 text-center flex items-center justify-center gap-2"}>
               <IndianRupee className="w-5 h-5" /> {t('contributionDeposit')}
             </button>
           </div>
@@ -688,6 +728,62 @@ export default function MemberPage() {
               <div className="flex gap-2">
                 <button onClick={handleEditProfile} className={btnSuccess + " flex-1 py-3"}>{t('save')}</button>
                 <button onClick={() => setShowEditProfile(false)} className={btnDanger + " px-6 py-3"}>{t('cancel')}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={() => setShowPaymentModal(false)}>
+          <div className="bg-slate-800 rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-md max-h-[85vh] overflow-y-auto border border-white/10 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">{t('submitPaymentProof')}</h3>
+              <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-blue-300 text-sm">
+                {t('paymentProofHint')} <span className="font-bold">{store.settings.upiId}</span>
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm">{t('selectMonth')}</label>
+                <select value={payMonth} onChange={(e) => setPayMonth(e.target.value)} className="w-full mt-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  {(() => {
+                    const months: string[] = [];
+                    const start = new Date('2025-09-01');
+                    const now = new Date();
+                    for (let d = new Date(start); d <= now; d.setMonth(d.getMonth() + 1)) {
+                      months.push(getMonthKey(d));
+                    }
+                    return months.reverse().map(m => <option key={m} value={m} className="bg-slate-800">{m}</option>);
+                  })()}
+                </select>
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm">{t('utrNumber')}</label>
+                <input
+                  value={payUtr}
+                  onChange={(e) => setPayUtr(e.target.value)}
+                  placeholder={t('utrPlaceholder')}
+                  className="w-full mt-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm">{t('paymentDate')}</label>
+                <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className="w-full mt-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm">{t('noteOptional')}</label>
+                <input
+                  value={payNote}
+                  onChange={(e) => setPayNote(e.target.value)}
+                  placeholder={t('noteOptional')}
+                  className="w-full mt-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleSubmitPayment} disabled={!payUtr.trim()} className={btnSuccess + " flex-1 py-3 disabled:opacity-50"}>{t('submitPayment')}</button>
+                <button onClick={() => setShowPaymentModal(false)} className={btnDanger + " px-6 py-3"}>{t('cancel')}</button>
               </div>
             </div>
           </div>

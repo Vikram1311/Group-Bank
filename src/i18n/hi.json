@@ -156,5 +156,15 @@
   "inactiveFundEarning": "आपका जमा फंड अभी भी ब्याज कमा रहा है ✅",
   "whatsappLinkedHint": "सेव करने के बाद WhatsApp खुलेगा। वहाँ से चयनित सदस्यों को संदेश भेज दें।",
   "loanApplication": "ऋण आवेदन",
-  "memberDetails": "सदस्य विवरण"
+  "memberDetails": "सदस्य विवरण",
+  "payNowUpi": "UPI से Pay करें",
+  "submitPaymentProof": "भुगतान विवरण जमा करें",
+  "paymentProofHint": "UPI से भुगतान करने के बाद नीचे UTR नंबर दर्ज करें। UPI ID:",
+  "utrNumber": "UTR / Transaction नंबर",
+  "utrPlaceholder": "UTR या Transaction ID दर्ज करें",
+  "paymentDate": "भुगतान तिथि",
+  "noteOptional": "नोट (वैकल्पिक)",
+  "submitPayment": "जमा करें",
+  "paymentRequestSent": "आपका भुगतान विवरण एडमिन को भेज दिया गया। सत्यापन के बाद योगदान दिखेगा।",
+  "pendingPaymentRequests": "भुगतान सत्यापन अनुरोध"
 }

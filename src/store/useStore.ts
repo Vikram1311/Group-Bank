@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Member, Loan, Contribution, EMIRecord, AppSettings, Notification, PenaltyRecord, ManualInterestRecord } from '../types';
+import type { Member, Loan, Contribution, EMIRecord, AppSettings, Notification, PenaltyRecord, ManualInterestRecord, PaymentRequest } from '../types';
 import { generateId, getDefaultPassword, calculateLoanDetails, getMonthKey, getContributionDueDate, calculatePenaltyDays } from '../utils/calculations';
 
 const DEFAULT_MEMBERS: Omit<Member, 'id'>[] = [
@@ -66,6 +66,7 @@ interface AppState {
   penalties: PenaltyRecord[];
   manualInterests: ManualInterestRecord[];
   notifications: Notification[];
+  paymentRequests: PaymentRequest[];
   settings: AppSettings;
   language: 'hi' | 'en' | 'ta';
   
@@ -116,6 +117,11 @@ interface AppState {
   
   // Notifications
   addNotification: (message: string, type: 'broadcast' | 'loan_holder' | 'loan_application', targetMemberId?: string) => void;
+
+  // Payment Requests
+  addPaymentRequest: (data: { memberId: string; memberName: string; memberMobile: string; month: string; amount: number; utrNumber: string; paymentDate: string; note?: string }) => void;
+  approvePaymentRequest: (id: string) => void;
+  rejectPaymentRequest: (id: string) => void;
   
   // CSV Export
   exportMemberCSV: (memberId: string) => string;
@@ -156,6 +162,7 @@ type PersistedStateSlice = Pick<
   | 'penalties'
   | 'manualInterests'
   | 'notifications'
+  | 'paymentRequests'
   | 'settings'
   | 'language'
   | 'lastDataUpdateAt'
@@ -175,6 +182,7 @@ const pickPersistedState = (state: AppState): PersistedStateSlice => ({
   penalties: state.penalties,
   manualInterests: state.manualInterests,
   notifications: state.notifications,
+  paymentRequests: state.paymentRequests,
   settings: state.settings,
   language: state.language,
   lastDataUpdateAt: state.lastDataUpdateAt,
@@ -299,6 +307,7 @@ export const useStore = create<AppState>()(
       penalties: [],
       manualInterests: [],
       notifications: [],
+      paymentRequests: [],
       settings: DEFAULT_SETTINGS,
       language: 'hi',
 
@@ -677,6 +686,42 @@ export const useStore = create<AppState>()(
           targetMemberId,
         };
         set(s => ({ notifications: [...s.notifications, notification] }));
+      },
+
+      addPaymentRequest: (data) => {
+        const req: PaymentRequest = {
+          id: generateId(),
+          memberId: data.memberId,
+          memberName: data.memberName,
+          memberMobile: data.memberMobile,
+          month: data.month,
+          amount: data.amount,
+          utrNumber: data.utrNumber,
+          paymentDate: data.paymentDate,
+          note: data.note,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        };
+        set(s => ({ paymentRequests: [...s.paymentRequests, req] }));
+      },
+
+      approvePaymentRequest: (id) => {
+        const req = get().paymentRequests.find(r => r.id === id);
+        if (!req || req.status !== 'pending') return;
+        get().addContribution(req.memberId, req.month, req.paymentDate, false);
+        set(s => ({
+          paymentRequests: s.paymentRequests.map(r =>
+            r.id === id ? { ...r, status: 'approved' as const } : r
+          ),
+        }));
+      },
+
+      rejectPaymentRequest: (id) => {
+        set(s => ({
+          paymentRequests: s.paymentRequests.map(r =>
+            r.id === id ? { ...r, status: 'rejected' as const } : r
+          ),
+        }));
       },
 
       exportMemberCSV: (memberId) => {
