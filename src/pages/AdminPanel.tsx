@@ -487,6 +487,18 @@ export default function AdminPanel() {
                     <button onClick={() => setShowEditMember(member.id)} className="bg-blue-500/20 text-blue-400 p-2 rounded-lg hover:bg-blue-500/30"><Edit3 className="w-4 h-4" /></button>
                     <button onClick={() => { if (confirm(`${member.name} हटाएं?`)) store.removeMember(member.id); }} className="bg-red-500/20 text-red-400 p-2 rounded-lg hover:bg-red-500/30"><Trash2 className="w-4 h-4" /></button>
                     <button onClick={() => store.resetMemberPassword(member.id)} className="bg-amber-500/20 text-amber-400 p-2 rounded-lg hover:bg-amber-500/30 text-xs whitespace-nowrap">🔑 Reset</button>
+                    {!member.isActive && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`⚠️ ${t('permanentDeleteConfirm1')} "${member.name}"?\n\n${t('permanentDeleteConfirm2')}`)) {
+                            store.permanentDeleteMember(member.id);
+                          }
+                        }}
+                        className="bg-red-700/30 text-red-300 px-3 py-1.5 rounded-lg text-xs hover:bg-red-700/50 font-semibold border border-red-700/40"
+                      >
+                        🗑️ {t('permanentDelete')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

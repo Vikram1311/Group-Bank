@@ -110,6 +110,7 @@ interface AppState {
   deleteContribution: (contributionId: string) => void;
   deleteEMIPayment: (loanId: string, emiId: string) => void;
   deleteLoan: (loanId: string) => void;
+  permanentDeleteMember: (memberId: string) => void;
   
   // Settings
   updateSettings: (data: Partial<AppSettings>) => void;
@@ -668,6 +669,24 @@ export const useStore = create<AppState>()(
       deleteLoan: (loanId) => {
         set(s => ({
           loans: s.loans.filter(l => l.id !== loanId),
+        }));
+      },
+
+      permanentDeleteMember: (memberId) => {
+        const member = get().getMember(memberId);
+        if (!member || member.isAdmin) return;
+        // Remove member and ALL their associated data
+        // Interest/penalty sharing automatically re-distributes proportionally
+        // because the ratio formula is (memberContrib / totalContribs) — removing
+        // the member reduces both numerator and denominator for remaining members.
+        set(s => ({
+          members: s.members.filter(m => m.id !== memberId),
+          loans: s.loans.filter(l => l.memberId !== memberId),
+          contributions: s.contributions.filter(c => c.memberId !== memberId),
+          penalties: s.penalties.filter(p => p.memberId !== memberId),
+          manualInterests: s.manualInterests.filter(i => i.memberId !== memberId),
+          notifications: s.notifications.filter(n => !n.targetMemberId || n.targetMemberId !== memberId),
+          paymentRequests: s.paymentRequests.filter(r => r.memberId !== memberId),
         }));
       },
 
