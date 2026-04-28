@@ -47,6 +47,8 @@ const SHARED_STATE_URL = import.meta.env.VITE_SHARED_STATE_URL?.trim() || '';
 const SHARED_STATE_TOKEN = import.meta.env.VITE_SHARED_STATE_TOKEN?.trim() || '';
 const SHARED_STATE_METHOD = (import.meta.env.VITE_SHARED_STATE_METHOD?.trim() || 'PUT').toUpperCase();
 const SYNC_DEBOUNCE_MS = 600;
+// Delay before retrying a failed sync after app resume (gives network time to reconnect)
+const NETWORK_READY_RETRY_DELAY_MS = 3_000;
 
 // JSONBin.io dedicated sync support
 const JSONBIN_BIN_ID = import.meta.env.VITE_JSONBIN_BIN_ID?.trim() || '';
@@ -1185,7 +1187,7 @@ if (typeof window !== 'undefined' && !(window as Window & { __shgSyncInit?: bool
   // after a short delay to handle the "network not yet ready" case.
   const syncOnResume = () => {
     void hydrateFromSharedState();
-    setTimeout(() => void hydrateFromSharedState(), 3_000);
+    setTimeout(() => void hydrateFromSharedState(), NETWORK_READY_RETRY_DELAY_MS);
   };
 
   // visibilitychange: fires on browser tab switch and in most Capacitor builds on app resume

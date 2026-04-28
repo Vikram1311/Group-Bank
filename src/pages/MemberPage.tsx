@@ -33,7 +33,7 @@ export default function MemberPage() {
 
   // ऐप खुलने पर (component mount) हर बार ताज़ा डेटा pull करें
   useEffect(() => {
-    void hydrateFromSharedState();
+    hydrateFromSharedState().catch(() => {/* sync failure is non-fatal; background polling will retry */});
   }, []);
 
   // Loan calc
