@@ -97,7 +97,8 @@ const getJsonbinBinId = (): string => getRuntimeJsonbinBinId() || JSONBIN_BIN_ID
 const getJsonbinApiKey = (): string => getRuntimeJsonbinApiKey() || JSONBIN_API_KEY_ENV;
 const getJsonbinReadUrl = (): string => { const id = getJsonbinBinId(); return id ? `https://api.jsonbin.io/v3/b/${id}/latest` : ''; };
 const getJsonbinWriteUrl = (): string => { const id = getJsonbinBinId(); return id ? `https://api.jsonbin.io/v3/b/${id}` : ''; };
-const USE_JSONBIN = true;
+// Evaluated at call-time so runtime-configured bin ID is always respected.
+const isJsonbinEnabled = (): boolean => !!getJsonbinBinId();
 
 type SyncMethod = 'PUT' | 'POST' | 'PATCH';
 const allowedSyncMethods: SyncMethod[] = ['PUT', 'POST', 'PATCH'];
@@ -249,7 +250,7 @@ const getApiHeaders = (): Record<string, string> => {
   return headers;
 };
 
-const isCloudSyncEnabled = () => USE_JSONBIN || !!SHARED_STATE_URL;
+const isCloudSyncEnabled = () => isJsonbinEnabled() || !!SHARED_STATE_URL;
 
 const parseSharedEnvelope = (payload: unknown): SharedStateEnvelope | null => {
   if (!payload || typeof payload !== 'object') return null;
@@ -270,7 +271,6 @@ const parseSharedEnvelope = (payload: unknown): SharedStateEnvelope | null => {
 };
 
 const fetchFromJsonbin = async (): Promise<SharedStateEnvelope | null> => {
-  if (!USE_JSONBIN) return null;
   const readUrl = getJsonbinReadUrl();
   if (!readUrl) return null;
   const response = await fetch(readUrl, {
@@ -346,19 +346,17 @@ const pushSharedState = async (state: AppState): Promise<void> => {
   const bodyJson = JSON.stringify(body);
 
   const pushPromises: Promise<void>[] = [];
-  if (USE_JSONBIN) {
-    const writeUrl = getJsonbinWriteUrl();
-    if (writeUrl) {
-      pushPromises.push((async () => {
-        const response = await fetch(writeUrl, {
-          method: 'PUT',
-          headers: getJsonbinHeaders(),
-          body: bodyJson,
-          keepalive: true,
-        });
-        if (!response.ok) throw new Error(`JSONBin write HTTP ${response.status}`);
-      })());
-    }
+  const writeUrl = getJsonbinWriteUrl();
+  if (writeUrl) {
+    pushPromises.push((async () => {
+      const response = await fetch(writeUrl, {
+        method: 'PUT',
+        headers: getJsonbinHeaders(),
+        body: bodyJson,
+        keepalive: true,
+      });
+      if (!response.ok) throw new Error(`JSONBin write HTTP ${response.status}`);
+    })());
   }
   if (SHARED_STATE_URL) {
     pushPromises.push((async () => {

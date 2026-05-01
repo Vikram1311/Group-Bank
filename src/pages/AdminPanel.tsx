@@ -92,6 +92,14 @@ export default function AdminPanel() {
   const [syncApiKey, setSyncApiKey] = useState(getRuntimeJsonbinApiKey);
   const [syncBinId, setSyncBinId] = useState(getRuntimeJsonbinBinId);
   const [syncSaved, setSyncSaved] = useState(false);
+  const syncSavedTimerRef = { current: null as ReturnType<typeof setTimeout> | null };
+
+  useEffect(() => {
+    return () => {
+      if (syncSavedTimerRef.current !== null) clearTimeout(syncSavedTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     return subscribeSyncStatus(() => setSyncStatus(getSyncStatus()));
@@ -102,6 +110,18 @@ export default function AdminPanel() {
     await forceSyncWithRemote();
     setSyncStatus(getSyncStatus());
     setIsSyncing(false);
+  };
+
+  const handleSaveSyncConfig = async () => {
+    setRuntimeJsonbinApiKey(syncApiKey);
+    setRuntimeJsonbinBinId(syncBinId);
+    setSyncSaved(true);
+    setIsSyncing(true);
+    await forceSyncWithRemote();
+    setSyncStatus(getSyncStatus());
+    setIsSyncing(false);
+    if (syncSavedTimerRef.current !== null) clearTimeout(syncSavedTimerRef.current);
+    syncSavedTimerRef.current = setTimeout(() => setSyncSaved(false), SYNC_SAVED_MESSAGE_DURATION_MS);
   };
 
   const activeMembers = store.members.filter(m => m.isActive);
@@ -696,17 +716,13 @@ export default function AdminPanel() {
               </div>
               <div className="flex gap-3 items-center">
                 <button
-                  onClick={() => {
-                    setRuntimeJsonbinApiKey(syncApiKey);
-                    setRuntimeJsonbinBinId(syncBinId);
-                    setSyncSaved(true);
-                    setTimeout(() => setSyncSaved(false), SYNC_SAVED_MESSAGE_DURATION_MS);
-                  }}
+                  onClick={() => void handleSaveSyncConfig()}
+                  disabled={isSyncing}
                   className={`${btnS} px-6 py-2 text-sm`}
                 >
                   <CheckCircle className="w-4 h-4 inline mr-1" /> Save & Sync
                 </button>
-                {syncSaved && <span className="text-green-400 text-sm">✓ Saved! अब Sync button दबाएँ।</span>}
+                {syncSaved && <span className="text-green-400 text-sm">✓ Saved! Sync हो रही है…</span>}
               </div>
               <p className="text-gray-500 text-xs">
                 Key नहीं है? <a href="https://jsonbin.io/app/account/apikeys" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">jsonbin.io/app/account/apikeys</a> पर जाएँ।
