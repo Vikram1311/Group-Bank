@@ -64,11 +64,40 @@ const NETWORK_READY_RETRY_DELAY_MS = 3_000;
 // JSONBin.io dedicated sync support
 // Bin ID is non-secret (public identifier). Hardcoded as fallback so sync works even
 // if VITE_JSONBIN_BIN_ID is not set in the deployment environment (e.g. Vercel).
-const JSONBIN_BIN_ID = import.meta.env.VITE_JSONBIN_BIN_ID?.trim() || '69ef2309856a6821897909da';
-const JSONBIN_API_KEY = import.meta.env.VITE_JSONBIN_API_KEY?.trim() || '';
-const JSONBIN_READ_URL = JSONBIN_BIN_ID ? `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest` : '';
-const JSONBIN_WRITE_URL = JSONBIN_BIN_ID ? `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}` : '';
-const USE_JSONBIN = !!JSONBIN_BIN_ID;
+const JSONBIN_BIN_ID_ENV = import.meta.env.VITE_JSONBIN_BIN_ID?.trim() || '69ef2309856a6821897909da';
+const JSONBIN_API_KEY_ENV = import.meta.env.VITE_JSONBIN_API_KEY?.trim() || '';
+
+// Runtime-configurable keys (stored in localStorage so admin can set them without redeploying).
+// The API key is stored as clear text because the browser must send it verbatim in HTTP headers
+// to the JSONBin.io API — there is no practical way to protect it further in a client-side app.
+// Access is limited to the same origin, and the key only permits writing to a single data bin.
+const RUNTIME_JSONBIN_API_KEY_LS = 'shg-jsonbin-api-key';
+const RUNTIME_JSONBIN_BIN_ID_LS = 'shg-jsonbin-bin-id';
+
+export const getRuntimeJsonbinApiKey = (): string => {
+  try { return localStorage.getItem(RUNTIME_JSONBIN_API_KEY_LS) ?? ''; } catch { return ''; }
+};
+export const setRuntimeJsonbinApiKey = (key: string): void => {
+  try {
+    if (key.trim()) localStorage.setItem(RUNTIME_JSONBIN_API_KEY_LS, key.trim());
+    else localStorage.removeItem(RUNTIME_JSONBIN_API_KEY_LS);
+  } catch { /* ignore storage errors */ }
+};
+export const getRuntimeJsonbinBinId = (): string => {
+  try { return localStorage.getItem(RUNTIME_JSONBIN_BIN_ID_LS) ?? ''; } catch { return ''; }
+};
+export const setRuntimeJsonbinBinId = (id: string): void => {
+  try {
+    if (id.trim()) localStorage.setItem(RUNTIME_JSONBIN_BIN_ID_LS, id.trim());
+    else localStorage.removeItem(RUNTIME_JSONBIN_BIN_ID_LS);
+  } catch { /* ignore storage errors */ }
+};
+
+const getJsonbinBinId = (): string => getRuntimeJsonbinBinId() || JSONBIN_BIN_ID_ENV;
+const getJsonbinApiKey = (): string => getRuntimeJsonbinApiKey() || JSONBIN_API_KEY_ENV;
+const getJsonbinReadUrl = (): string => { const id = getJsonbinBinId(); return id ? `https://api.jsonbin.io/v3/b/${id}/latest` : ''; };
+const getJsonbinWriteUrl = (): string => { const id = getJsonbinBinId(); return id ? `https://api.jsonbin.io/v3/b/${id}` : ''; };
+const USE_JSONBIN = true;
 
 type SyncMethod = 'PUT' | 'POST' | 'PATCH';
 const allowedSyncMethods: SyncMethod[] = ['PUT', 'POST', 'PATCH'];
@@ -209,7 +238,8 @@ const pickPersistedState = (state: AppState): PersistedStateSlice => ({
 
 const getJsonbinHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (JSONBIN_API_KEY) headers['X-Master-Key'] = JSONBIN_API_KEY;
+  const key = getJsonbinApiKey();
+  if (key) headers['X-Master-Key'] = key;
   return headers;
 };
 
@@ -241,7 +271,9 @@ const parseSharedEnvelope = (payload: unknown): SharedStateEnvelope | null => {
 
 const fetchFromJsonbin = async (): Promise<SharedStateEnvelope | null> => {
   if (!USE_JSONBIN) return null;
-  const response = await fetch(JSONBIN_READ_URL, {
+  const readUrl = getJsonbinReadUrl();
+  if (!readUrl) return null;
+  const response = await fetch(readUrl, {
     method: 'GET',
     headers: getJsonbinHeaders(),
     cache: 'no-store',
@@ -315,15 +347,18 @@ const pushSharedState = async (state: AppState): Promise<void> => {
 
   const pushPromises: Promise<void>[] = [];
   if (USE_JSONBIN) {
-    pushPromises.push((async () => {
-      const response = await fetch(JSONBIN_WRITE_URL, {
-        method: 'PUT',
-        headers: getJsonbinHeaders(),
-        body: bodyJson,
-        keepalive: true,
-      });
-      if (!response.ok) throw new Error(`JSONBin write HTTP ${response.status}`);
-    })());
+    const writeUrl = getJsonbinWriteUrl();
+    if (writeUrl) {
+      pushPromises.push((async () => {
+        const response = await fetch(writeUrl, {
+          method: 'PUT',
+          headers: getJsonbinHeaders(),
+          body: bodyJson,
+          keepalive: true,
+        });
+        if (!response.ok) throw new Error(`JSONBin write HTTP ${response.status}`);
+      })());
+    }
   }
   if (SHARED_STATE_URL) {
     pushPromises.push((async () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useStore, forceSyncWithRemote, getSyncStatus, subscribeSyncStatus } from '../store/useStore';
+import { useStore, forceSyncWithRemote, getSyncStatus, subscribeSyncStatus, getRuntimeJsonbinApiKey, setRuntimeJsonbinApiKey, getRuntimeJsonbinBinId, setRuntimeJsonbinBinId } from '../store/useStore';
 import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatCurrency, formatDate, generateId, getMonthKey, getContributionDueDate, calculatePenaltyDays } from '../utils/calculations';
@@ -14,6 +14,7 @@ import {
 
 type AdminTab = 'dashboard' | 'members' | 'loans' | 'contributions' | 'messages' | 'settings';
 
+const SYNC_SAVED_MESSAGE_DURATION_MS = 3000;
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
   return (
     <div className="bg-white/5 backdrop-blur rounded-2xl p-4 border border-white/10 hover:border-white/20 transition-all hover:scale-[1.02]">
@@ -88,6 +89,9 @@ export default function AdminPanel() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showMemberDetail, setShowMemberDetail] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState(getSyncStatus);
+  const [syncApiKey, setSyncApiKey] = useState(getRuntimeJsonbinApiKey);
+  const [syncBinId, setSyncBinId] = useState(getRuntimeJsonbinBinId);
+  const [syncSaved, setSyncSaved] = useState(false);
 
   useEffect(() => {
     return subscribeSyncStatus(() => setSyncStatus(getSyncStatus()));
@@ -282,7 +286,7 @@ export default function AdminPanel() {
             <div>
               <p className="font-semibold text-red-300">Cloud Sync Error</p>
               <p className="text-red-400 text-xs mt-0.5">{syncStatus.lastSyncError}</p>
-              <p className="text-red-400/70 text-xs mt-1">Vercel में <code className="bg-red-900/40 px-1 rounded">VITE_JSONBIN_API_KEY</code> और <code className="bg-red-900/40 px-1 rounded">VITE_JSONBIN_BIN_ID</code> check करें, फिर redeploy करें।</p>
+              <p className="text-red-400/70 text-xs mt-1">Settings → Sync Configuration में अपनी <strong>JSONBin API Key</strong> enter करें।</p>
             </div>
           </div>
         )}
@@ -662,8 +666,51 @@ export default function AdminPanel() {
               <button onClick={() => store.updateSettings(settingsEdit)} className={`${btnS} px-6 py-2 text-sm`}><CheckCircle className="w-4 h-4 inline mr-1" /> {t('save')}</button>
             </div>
             <div className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
-              <h3 className="text-white font-semibold mb-4">🔒 {t('changePassword')}</h3>
+              <h3 className="text-white font-semibold mb-1">🔒 {t('changePassword')}</h3>
               <AdminChangePassword />
+            </div>
+            <div className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10 space-y-4">
+              <div>
+                <h3 className="text-white font-semibold">☁️ Sync Configuration</h3>
+                <p className="text-gray-400 text-xs mt-1">JSONBin.io API key यहाँ enter करें ताकि सभी members के phone पर data sync हो। Key सिर्फ इस device पर save होती है।</p>
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm">JSONBin API Key (X-Master-Key)</label>
+                <input
+                  type="password"
+                  value={syncApiKey}
+                  onChange={(e) => { setSyncApiKey(e.target.value); setSyncSaved(false); }}
+                  placeholder="$2a$10$..."
+                  className="w-full mt-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm">JSONBin Bin ID <span className="text-gray-500">(optional — default bin used if empty)</span></label>
+                <input
+                  type="text"
+                  value={syncBinId}
+                  onChange={(e) => { setSyncBinId(e.target.value); setSyncSaved(false); }}
+                  placeholder="69ef2309856a6821897909da"
+                  className="w-full mt-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono text-sm"
+                />
+              </div>
+              <div className="flex gap-3 items-center">
+                <button
+                  onClick={() => {
+                    setRuntimeJsonbinApiKey(syncApiKey);
+                    setRuntimeJsonbinBinId(syncBinId);
+                    setSyncSaved(true);
+                    setTimeout(() => setSyncSaved(false), SYNC_SAVED_MESSAGE_DURATION_MS);
+                  }}
+                  className={`${btnS} px-6 py-2 text-sm`}
+                >
+                  <CheckCircle className="w-4 h-4 inline mr-1" /> Save & Sync
+                </button>
+                {syncSaved && <span className="text-green-400 text-sm">✓ Saved! अब Sync button दबाएँ।</span>}
+              </div>
+              <p className="text-gray-500 text-xs">
+                Key नहीं है? <a href="https://jsonbin.io/app/account/apikeys" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">jsonbin.io/app/account/apikeys</a> पर जाएँ।
+              </p>
             </div>
           </div>
         )}
